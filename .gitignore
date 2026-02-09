@@ -1,0 +1,58 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/
+*.env
+.env
+
+# SSH Keys
+id_rsa
+id_rsa.pub
+*.pub
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Logs
+*.log
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# WireGuard configs (may contain private keys)
+wg0.conf
+*.conf
+
+# Temporary files
+tmp/
+temp/
