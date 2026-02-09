@@ -1,4 +1,4 @@
-# Personal VPN + Ad-Blocking Infrastructure
+# Personal Cloud VPN + Ad-Blocking Infrastructure
 
 Terraform-managed AWS infrastructure providing secure VPN access with DNS-level ad-blocking capabilities. Built for personal privacy, secure browsing on untrusted networks, and cost-optimized cloud deployment.
 
@@ -207,69 +207,6 @@ aws ssm start-session --target $INSTANCE_ID \
   --parameters command="systemctl status pihole-FTL || systemctl status unbound"
 ```
 
-### Monitoring
-
-```bash
-# Check instance status
-aws ec2 describe-instance-status --instance-ids $INSTANCE_ID
-
-# View system logs
-aws ssm start-session --target $INSTANCE_ID \
-  --document-name AWS-StartInteractiveCommand \
-  --parameters command="journalctl -u wg-quick@wg0 -n 50"
-```
-
-## Troubleshooting
-
-### Cannot Connect to VPN
-
-1. **Check security group**: Verify port 51820/udp is open
-   ```bash
-   aws ec2 describe-security-groups \
-     --group-ids $(terraform output -raw security_group_id)
-   ```
-
-2. **Check instance status**: Ensure instance is running
-   ```bash
-   aws ec2 describe-instances \
-     --instance-ids $(terraform output -raw instance_id) \
-     --query 'Reservations[0].Instances[0].State.Name'
-   ```
-
-3. **Check WireGuard service**: Connect via SSM and verify
-   ```bash
-   sudo systemctl status wg-quick@wg0
-   sudo wg show
-   ```
-
-### High Data Transfer Costs
-
-1. **Review usage**: Check CloudWatch metrics
-2. **Limit bandwidth**: Configure WireGuard rate limiting
-3. **Stop when unused**: Stop instance during idle periods
-   ```bash
-   aws ec2 stop-instances --instance-ids $INSTANCE_ID
-   ```
-
-### Instance Not Accessible via SSM
-
-1. **Check IAM role**: Verify instance profile attached
-2. **Check SSM agent**: Should be running on AL2023 by default
-3. **Wait**: SSM registration can take 5-10 minutes after launch
-
-## Roadmap
-
-- [ ] Automated WireGuard configuration script
-- [ ] Pi-hole installation and configuration
-- [ ] Unbound recursive DNS resolver
-- [ ] CloudWatch alarms for instance health
-- [ ] Automated backup of VPN configurations
-- [ ] Multi-region deployment option
-- [ ] Client configuration generator script
-- [ ] DNS-over-HTTPS (DoH) support
-- [ ] VPN kill switch configuration
-- [ ] Terraform module structure
-
 ## Architecture Decisions
 
 ### Why WireGuard?
@@ -295,13 +232,6 @@ aws ssm start-session --target $INSTANCE_ID \
 - Dynamic IP acceptable for personal use
 - Can be added later if needed
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for security policy and vulnerability reporting.
 
 ## License
 
