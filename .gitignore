@@ -53,6 +53,13 @@ Thumbs.db
 wg0.conf
 *.conf
 
+# MD files
+SECURITY.md
+INTEGRATION_REPORT.md
+PORTFOLIO_NOTES.md
+WORKLOG.md
+CONTRIBUTING.md
+
 # Temporary files
 tmp/
 temp/
