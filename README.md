@@ -93,7 +93,7 @@ aws_region           = "us-east-1"
 aws_profile          = "personal"
 instance_type        = "t2.micro"
 project_name         = "personal-vpn"
-allowed_ssh_cidr     = "YOUR_IP/32"  # Lock down SSH access
+allowed_ssh_cidr     = "YOUR_IP/32"             mmnbmnn
 ssh_public_key_path  = "~/.ssh/id_rsa.pub"
 enable_keypair       = true
 ```
@@ -107,7 +107,7 @@ enable_keypair       = true
 | `instance_type` | EC2 instance type | `t2.micro` |
 | `vpc_cidr` | VPC CIDR block | `10.10.0.0/16` |
 | `public_subnet_cidr` | Public subnet CIDR | `10.10.10.0/24` |
-| `allowed_ssh_cidr` | SSH access restriction | `0.0.0.0/0` (⚠️ lock down!) |
+| `allowed_ssh_cidr` | SSH access restriction | `0.0.0.0/0` |
 | `enable_keypair` | Create EC2 key pair | `true` |
 
 ## Security
