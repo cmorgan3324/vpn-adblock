@@ -2,7 +2,7 @@
 
 A Terraform-managed AWS setup that gives you: - A personal WireGuard VPN
 endpoint - DNS-level ad-blocking (so ads get rejected at the door, not
-after they move in) - A cost-conscious footprint (\~\$9-$12/mo after Free tier limits)
+after they move in) - A cost-conscious footprint (\~\$9-$12/mo after free tier limits)
 
 If you can follow steps and tolerate mild troubleshooting, you're good.
 
@@ -149,7 +149,7 @@ Rotate keys periodically. Remove stale peers.
 
 ## Cost Profile
 
-Estimated monthly cost: \~\$9-$12 (after Free tier limits)
+Estimated monthly cost: \~\$9-$12 (after ree tier limits)
 
 Primary cost drivers: - EC2 runtime - EBS storage - Data transfer
 
