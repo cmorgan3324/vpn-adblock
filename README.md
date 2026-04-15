@@ -198,4 +198,4 @@ This removes all Terraform-managed infrastructure.
 
 ## License
 
-MIT
+This project is licensed under the MIT License.
