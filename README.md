@@ -4,13 +4,11 @@
 
 Public Wi-Fi networks expose traffic to interception. ISPs log DNS queries. Ad networks track browsing across sites. A personal VPN with DNS-level ad-blocking solves all three: encrypted tunnel for privacy, DNS filtering for ads/trackers, and a single controlled exit point for all traffic. This project provisions the AWS infrastructure to host that stack at minimal cost.
 
-[VERIFIED — source: `main.tf` (VPC isolation, WireGuard SG rule, EC2 instance)]
 
 ## 2. Solution Overview
 
 Terraform-managed AWS infrastructure providing a WireGuard VPN endpoint in an isolated VPC. A single EC2 instance (t2.micro) runs WireGuard for encrypted tunneling and DNS-level ad-blocking for tracker/ad domain filtering. Systems Manager provides secure shell access without SSH key exposure. Total infrastructure cost is ~$9-12/month after free tier.
 
-[VERIFIED — source: `main.tf`, `variables.tf`, `outputs.tf`]
 
 ## 3. Architecture Diagram
 
@@ -46,7 +44,6 @@ graph TB
 
 Full architecture details: [docs/architecture.md](docs/architecture.md)
 
-[VERIFIED — source: `main.tf` (all resources), `providers.tf`]
 
 ## 4. System Flow
 
@@ -59,7 +56,6 @@ DNS query → local resolver on EC2 → if domain on blocklist: return 0.0.0.0 (
 **Management path:**
 Operator → AWS SSM Session Manager → EC2 shell (no SSH keys needed)
 
-[VERIFIED — source: `main.tf` (SG rules, IAM SSM role), `README.md` (validation commands)]
 
 ## 5. Technology Stack & Rationale
 
@@ -74,7 +70,6 @@ Operator → AWS SSM Session Manager → EC2 shell (no SSH keys needed)
 | AWS SSM | Instance management | No SSH key exposure, CloudTrail audit trail |
 | Security Groups | Access control | SSH restricted to operator IP, WireGuard open (crypto-authenticated) |
 
-[VERIFIED — source: `main.tf`, `variables.tf`, `providers.tf`]
 
 ## 6. Key Decisions & Tradeoffs
 
@@ -89,7 +84,6 @@ Operator → AWS SSM Session Manager → EC2 shell (no SSH keys needed)
 
 Full decision log: [docs/decisions.md](docs/decisions.md)
 
-[VERIFIED — source: `main.tf`, `variables.tf`]
 
 ## 7. Challenges & Resolutions
 
@@ -102,7 +96,6 @@ Full decision log: [docs/decisions.md](docs/decisions.md)
 
 Full lessons: [docs/lessons-learned.md](docs/lessons-learned.md)
 
-[VERIFIED — source: `variables.tf` (defaults), `main.tf` (SG rules, user_data), `.gitignore`]
 
 ## 8. Security Considerations
 
@@ -115,7 +108,6 @@ Full lessons: [docs/lessons-learned.md](docs/lessons-learned.md)
 - No credentials in Terraform code — profile-based AWS auth, no hardcoded keys
 - Terraform state gitignored (contains instance IDs, IPs)
 
-[VERIFIED — source: `main.tf` (SG, IAM), `.gitignore` (secrets/, *.tfstate), `git ls-files secrets/` = empty]
 
 ## 9. Cost Considerations
 
@@ -130,7 +122,6 @@ Full lessons: [docs/lessons-learned.md](docs/lessons-learned.md)
 
 **Total: ~$9-12/month** (after free tier expiration). During free tier: ~$0.80/month (EBS only).
 
-[VERIFIED — source: `variables.tf` (t2.micro), AWS published pricing for us-east-1]
 [Estimates based on: 24/7 operation, single user, <100GB monthly transfer]
 
 ## 10. Future Improvements
@@ -142,7 +133,6 @@ Full lessons: [docs/lessons-learned.md](docs/lessons-learned.md)
 - TODO: Consider Elastic IP or dynamic DNS for stable client configuration
 - TODO: Add Ansible playbook as alternative to manual software configuration
 
-[VERIFIED — source: absence of these features confirmed in audit]
 
 ## Quick Start
 
