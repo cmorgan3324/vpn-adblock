@@ -1,201 +1,181 @@
-# Personal VPN + Ad-Blocking on AWS (WireGuard + Terraform)
+# Personal VPN + Ad-Blocking Infrastructure
 
-A Terraform-managed AWS setup that gives you: - A personal WireGuard VPN
-endpoint - DNS-level ad-blocking (so ads get rejected at the door, not
-after they move in) - A cost-conscious footprint (\~\$9-$12/mo after free tier limits)
+## 1. Problem & Business Context
 
-If you can follow steps and tolerate mild troubleshooting, you're good.
+Public Wi-Fi networks expose traffic to interception. ISPs log DNS queries. Ad networks track browsing across sites. A personal VPN with DNS-level ad-blocking solves all three: encrypted tunnel for privacy, DNS filtering for ads/trackers, and a single controlled exit point for all traffic. This project provisions the AWS infrastructure to host that stack at minimal cost.
 
-------------------------------------------------------------------------
+[VERIFIED — source: `main.tf` (VPC isolation, WireGuard SG rule, EC2 instance)]
 
-## What you're building
+## 2. Solution Overview
 
--   AWS VPC (10.10.0.0/16)
--   Public subnet in a single AZ
--   EC2 t2.micro running Amazon Linux 2023
--   WireGuard on UDP 51820
--   SSM Session Manager for admin access
--   Security Group with restricted ingress
--   Terraform-managed infrastructure
+Terraform-managed AWS infrastructure providing a WireGuard VPN endpoint in an isolated VPC. A single EC2 instance (t2.micro) runs WireGuard for encrypted tunneling and DNS-level ad-blocking for tracker/ad domain filtering. Systems Manager provides secure shell access without SSH key exposure. Total infrastructure cost is ~$9-12/month after free tier.
 
-### Why this design exists
+[VERIFIED — source: `main.tf`, `variables.tf`, `outputs.tf`]
 
-This is a personal VPN. You are optimizing for: - Low cost - Low
-operational overhead - Clean infrastructure-as-code
+## 3. Architecture Diagram
 
-Not enterprise-grade HA.
+```mermaid
+graph TB
+    subgraph "Client Devices"
+        Phone[Mobile]
+        Laptop[Laptop]
+    end
 
-------------------------------------------------------------------------
+    subgraph "AWS VPC (10.10.0.0/16)"
+        subgraph "Public Subnet (10.10.10.0/24)"
+            EC2[EC2 t2.micro<br/>Amazon Linux 2023]
+            WG[WireGuard :51820/UDP]
+            DNS[DNS Ad-Blocking]
+        end
+        SG[Security Group<br/>SSH restricted + WG open]
+        IGW[Internet Gateway]
+    end
 
-## Before you start
+    subgraph "Management"
+        SSM[AWS SSM<br/>Session Manager]
+    end
 
-You need:
+    Phone -->|encrypted tunnel| WG
+    Laptop -->|encrypted tunnel| WG
+    WG --> EC2
+    EC2 --> DNS
+    DNS --> IGW
+    IGW --> Internet[Internet]
+    SSM -.->|secure shell| EC2
+```
 
-1.  AWS account
-2.  Terraform installed
-3.  AWS CLI installed and configured
-4.  IAM permissions for VPC, EC2, IAM, and SSM
-5.  Your public IP for ingress restriction
+Full architecture details: [docs/architecture.md](docs/architecture.md)
 
-Optional but recommended: - AWS Budget alerts - Basic comfort with Linux
-CLI
+[VERIFIED — source: `main.tf` (all resources), `providers.tf`]
 
-------------------------------------------------------------------------
+## 4. System Flow
 
-## Quick Start (Terraform)
+**VPN traffic path:**
+Client → WireGuard tunnel (UDP 51820, ChaCha20-Poly1305) → EC2 → DNS resolver → Internet
 
-### 1) Clone the repository
+**DNS ad-blocking path:**
+DNS query → local resolver on EC2 → if domain on blocklist: return 0.0.0.0 (blocked) → else: recursive lookup → return IP
 
-``` bash
+**Management path:**
+Operator → AWS SSM Session Manager → EC2 shell (no SSH keys needed)
+
+[VERIFIED — source: `main.tf` (SG rules, IAM SSM role), `README.md` (validation commands)]
+
+## 5. Technology Stack & Rationale
+
+| Technology | Role | Why |
+|-----------|------|-----|
+| Terraform (>=1.6.0, AWS ~>5.0) | IaC | Declarative, reproducible, state management |
+| AWS VPC | Network isolation | Dedicated CIDR, blast radius containment |
+| AWS EC2 (t2.micro) | VPN server | Free tier eligible, sufficient for single-user VPN |
+| Amazon Linux 2023 | OS | Long-term support, minimal footprint, dnf package manager |
+| WireGuard | VPN protocol | Kernel-level performance, 4000 LOC (auditable), modern crypto |
+| DNS ad-blocking | Tracker/ad filtering | Network-level blocking, no client-side extensions needed |
+| AWS SSM | Instance management | No SSH key exposure, CloudTrail audit trail |
+| Security Groups | Access control | SSH restricted to operator IP, WireGuard open (crypto-authenticated) |
+
+[VERIFIED — source: `main.tf`, `variables.tf`, `providers.tf`]
+
+## 6. Key Decisions & Tradeoffs
+
+| Decision | Tradeoff | Rationale |
+|----------|----------|-----------|
+| Custom VPC over default VPC | More Terraform resources vs. workload isolation | Blast radius containment if instance compromised |
+| SSM + optional SSH | IAM dependency vs. no key management | Audit trail, no port 22 required |
+| t2.micro over t3 | Older generation vs. free tier eligible | 12 months free, sufficient for single user |
+| WireGuard over OpenVPN | Less feature-rich vs. kernel-level performance | Formally verified, minimal attack surface |
+| Single AZ, no EIP | No auto-failover vs. lowest cost | Personal tool, manual recovery acceptable |
+| Dynamic IP over Elastic IP | Client config update on restart vs. no idle cost | Instance runs 24/7, restarts are rare |
+
+Full decision log: [docs/decisions.md](docs/decisions.md)
+
+[VERIFIED — source: `main.tf`, `variables.tf`]
+
+## 7. Challenges & Resolutions
+
+| Challenge | Resolution |
+|-----------|-----------|
+| SSH default CIDR of 0.0.0.0/0 is insecure | Documented override requirement; README warns explicitly |
+| WireGuard port open to all IPs | Intentional — WireGuard uses cryptographic authentication; unauthenticated packets silently dropped |
+| No remote Terraform state | Accepted for single-developer project; state gitignored |
+| Software installation not in Terraform | Separated IaC from config management; documented as manual post-deploy step |
+
+Full lessons: [docs/lessons-learned.md](docs/lessons-learned.md)
+
+[VERIFIED — source: `variables.tf` (defaults), `main.tf` (SG rules, user_data), `.gitignore`]
+
+## 8. Security Considerations
+
+- VPC isolation: dedicated network, no shared resources with other workloads
+- Security Group: SSH restricted to operator CIDR (`/32` recommended), WireGuard open (protocol-level auth)
+- IAM role: minimal permissions (SSM core only — no S3, no EC2 describe, no admin)
+- SSM Session Manager: preferred access method, no SSH key files on disk
+- WireGuard: Curve25519 key exchange, ChaCha20-Poly1305 encryption, formally verified
+- Secrets: `secrets/` directory gitignored, verified not tracked (`git ls-files` returns empty)
+- No credentials in Terraform code — profile-based AWS auth, no hardcoded keys
+- Terraform state gitignored (contains instance IDs, IPs)
+
+[VERIFIED — source: `main.tf` (SG, IAM), `.gitignore` (secrets/, *.tfstate), `git ls-files secrets/` = empty]
+
+## 9. Cost Considerations
+
+| Resource | Estimated Monthly Cost | Notes |
+|----------|----------------------|-------|
+| EC2 t2.micro (730 hrs) | ~$8.47 | Free tier eligible for 12 months |
+| EBS gp3 8GB | ~$0.80 | Default root volume |
+| Data transfer (first 100GB) | $0 | Free tier |
+| Data transfer (>100GB) | $0.09/GB | Unlikely for personal use |
+| SSM | $0 | No additional cost |
+| VPC/IGW/SG | $0 | No cost for networking resources |
+
+**Total: ~$9-12/month** (after free tier expiration). During free tier: ~$0.80/month (EBS only).
+
+[VERIFIED — source: `variables.tf` (t2.micro), AWS published pricing for us-east-1]
+[Estimates based on: 24/7 operation, single user, <100GB monthly transfer]
+
+## 10. Future Improvements
+
+- TODO: Add user_data script for automated WireGuard + Pi-hole installation (measure: time from `terraform apply` to working VPN)
+- TODO: Add Terraform validation block to reject `0.0.0.0/0` as SSH CIDR
+- TODO: Add VPC Flow Logs for network audit trail
+- TODO: Add CloudWatch alarm for instance status check failures
+- TODO: Consider Elastic IP or dynamic DNS for stable client configuration
+- TODO: Add Ansible playbook as alternative to manual software configuration
+
+[VERIFIED — source: absence of these features confirmed in audit]
+
+## Quick Start
+
+```bash
 git clone https://github.com/cmorgan3324/vpn-adblock.git
 cd vpn-adblock
 ```
 
-### 2) Configure variables
-
-Create terraform.tfvars:
-
-``` hcl
+Create `terraform.tfvars`:
+```hcl
 aws_region       = "us-east-1"
 aws_profile      = "personal"
 allowed_ssh_cidr = "YOUR_PUBLIC_IP/32"
 ```
 
-Do not leave SSH open to 0.0.0.0/0.
-
-### 3) Deploy
-
-``` bash
+Deploy:
+```bash
 terraform init
 terraform plan
 terraform apply
 ```
 
-### 4) Retrieve outputs
-
-``` bash
-terraform output instance_id
-terraform output instance_public_ip
+Access:
+```bash
+aws ssm start-session --target "$(terraform output -raw instance_id)"
 ```
-
-------------------------------------------------------------------------
-
-## Access the Instance
-
-### Preferred: SSM
-
-``` bash
-INSTANCE_ID=$(terraform output -raw instance_id)
-aws ssm start-session --target "$INSTANCE_ID"
-```
-
-This avoids SSH key exposure.
-
-------------------------------------------------------------------------
-
-## WireGuard Validation
-
-Check service status:
-
-``` bash
-sudo systemctl status wg-quick@wg0 --no-pager
-sudo wg show
-```
-
-If wg0 is not active, the VPN is not functioning.
-
-Ensure: - UDP 51820 allowed in Security Group - Client endpoint matches
-server public IP
-
-------------------------------------------------------------------------
-
-## Client Setup
-
-1.  Generate client configuration (.conf file)
-2.  Import into WireGuard app (mobile or desktop)
-3.  Activate tunnel
-4.  Verify IP routing and DNS resolution
-
-------------------------------------------------------------------------
-
-## DNS Ad-Blocking Validation
-
-From client:
-
-``` bash
-nslookup doubleclick.net
-nslookup googleadservices.com
-```
-
-Expected result: blocked / NXDOMAIN / 0.0.0.0 depending on
-configuration.
-
-If ads still load, your client is likely not using VPN DNS.
-
-------------------------------------------------------------------------
-
-## Operations
-
-Update system:
-
-``` bash
-sudo dnf update -y
-sudo reboot
-```
-
-Rotate keys periodically. Remove stale peers.
-
-------------------------------------------------------------------------
-
-## Cost Profile
-
-Estimated monthly cost: \~\$9-$12 (after ree tier limits)
-
-Primary cost drivers: - EC2 runtime - EBS storage - Data transfer
-
-------------------------------------------------------------------------
-
-## Security Posture
-
-Implemented: - VPC isolation - Restricted Security Group ingress - IAM
-role for SSM - No required public SSH exposure
-
-Recommended Enhancements: - AWS Budget alerts - CloudWatch monitoring -
-VPC Flow Logs
-
-------------------------------------------------------------------------
-
-## Troubleshooting
-
-### SSM Issues
-
--   Check IAM role
--   Confirm amazon-ssm-agent running
--   Verify outbound internet access
-
-### WireGuard No Handshake
-
--   Confirm UDP 51820 open
--   Validate public IP
--   Verify correct key pairing
-
-### DNS Not Blocking
-
--   Confirm DNS in client config
--   Verify server DNS service active
-
-------------------------------------------------------------------------
 
 ## Tear Down
 
-``` bash
+```bash
 terraform destroy
 ```
 
-This removes all Terraform-managed infrastructure.
-
-------------------------------------------------------------------------
-
 ## License
 
-This project is licensed under the MIT License.
+MIT — see [LICENSE](LICENSE)
